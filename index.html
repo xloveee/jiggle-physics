@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Jiggle Physics — xlovecam reference standard for weight-painted soft-body jiggle</title>
+<meta name="description" content="xlovecam Jiggle Physics: an open reference standard for real-time weight-painted soft-body jiggle — damped spring bones, UV weight maps, vertex += weight * boneJiggle." />
+<meta name="author" content="xlovecam" />
+<meta name="keywords" content="xlovecam, jiggle physics, spring bones, soft body, weight painting, secondary motion, webgl, reference standard" />
+<meta name="application-name" content="xlovecam Jiggle Physics" />
+<link rel="canonical" href="https://xloveee.github.io/jiggle-physics/" />
+<meta property="og:title" content="xlovecam Jiggle Physics — reference standard" />
+<meta property="og:description" content="Weight-painted soft-body jiggle physics standard by xlovecam. Paint UV weights, drive damped spring bones, one rule: vertex += weight * boneJiggle." />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://xloveee.github.io/jiggle-physics/" />
+<meta property="og:site_name" content="xlovecam" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="xlovecam Jiggle Physics" />
+<meta name="twitter:description" content="Open reference standard for weight-painted soft-body jiggle physics by xlovecam." />
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "xlovecam Jiggle Physics",
+  "description": "Reference standard for real-time weight-painted soft-body jiggle physics — damped spring bones and UV weight maps.",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Web",
+  "url": "https://xloveee.github.io/jiggle-physics/",
+  "codeRepository": "https://github.com/xloveee/jiggle-physics",
+  "author": { "@type": "Organization", "name": "xlovecam", "url": "https://github.com/xloveee" },
+  "creator": { "@type": "Organization", "name": "xlovecam" }
+}
+</script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: #050507; overflow: hidden; }
+  body {
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Times New Roman", Georgia, serif;
+    color: #e8e2d4;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    cursor: grab;
+    touch-action: none;
+  }
+  body.dragging { cursor: grabbing; }
+
+  #gl { display: block; width: 100vw; height: 100vh; }
+
+  #uvpaint {
+    position: fixed; right: clamp(26px, 5vmin, 70px); top: clamp(22px, 4.4vmin, 62px);
+    z-index: 9; display: none; flex-direction: column; gap: 8px; pointer-events: auto;
+    width: min(42vw, 320px);
+  }
+  body.paint-mode #uvpaint { display: flex; }
+  #uvpaint h2 {
+    font-variant: small-caps; letter-spacing: 0.22em; font-size: clamp(10px, 1.2vmin, 13px);
+    font-weight: normal; color: rgba(232, 226, 212, 0.62);
+  }
+  #uvCanvas {
+    display: block; width: 100%; height: auto; aspect-ratio: 2 / 1;
+    border: 1px solid rgba(232, 226, 212, 0.42); background: #0a0a0c; cursor: crosshair;
+    touch-action: none;
+  }
+  #uvGains { display: flex; flex-direction: column; gap: 7px; }
+  #uvGains .uv-row label { flex: 0 0 54px; letter-spacing: 0.12em; }
+
+  #frame { position: fixed; inset: clamp(14px, 3.2vmin, 46px); border: 1px solid rgba(232, 226, 212, 0.42); pointer-events: none; z-index: 5; }
+  #frame::after { content: ""; position: absolute; inset: 6px; border: 1px solid rgba(232, 226, 212, 0.16); }
+
+  #head { position: fixed; top: clamp(22px, 4.4vmin, 62px); left: clamp(26px, 5vmin, 70px); z-index: 6; pointer-events: none; font-variant: small-caps; letter-spacing: 0.28em; font-size: clamp(10px, 1.25vmin, 13px); color: rgba(232, 226, 212, 0.55); }
+  #read { position: fixed; top: clamp(22px, 4.4vmin, 62px); right: clamp(26px, 5vmin, 70px); z-index: 6; pointer-events: none; letter-spacing: 0.16em; font-feature-settings: "tnum" 1; font-size: clamp(10px, 1.25vmin, 13px); color: rgba(232, 226, 212, 0.55); }
+
+  #hint {
+    position: fixed; left: 50%; bottom: clamp(18px, 4vmin, 50px); transform: translateX(-50%);
+    z-index: 6; pointer-events: none; font-size: clamp(9px, 1.1vmin, 12px);
+    letter-spacing: 0.18em; font-variant: small-caps; color: rgba(232, 226, 212, 0.45);
+    transition: opacity 1.4s ease 2.4s; text-align: center; width: min(92vw, 900px);
+  }
+  #hint.gone { opacity: 0; }
+
+  #panel {
+    position: fixed; left: clamp(26px, 5vmin, 70px); bottom: clamp(26px, 5.6vmin, 78px);
+    z-index: 7; display: flex; flex-direction: column; gap: 11px; width: min(42vw, 300px); pointer-events: auto;
+  }
+  .row { display: flex; align-items: center; gap: 12px; }
+  .row label { flex: 0 0 76px; font-variant: small-caps; letter-spacing: 0.16em; font-size: clamp(10px, 1.2vmin, 13px); color: rgba(232, 226, 212, 0.62); }
+  .row output { flex: 0 0 40px; text-align: right; font-feature-settings: "tnum" 1; font-size: clamp(10px, 1.2vmin, 12px); color: rgba(232, 226, 212, 0.85); }
+  input[type=range] { -webkit-appearance: none; appearance: none; flex: 1 1 auto; height: 2px; background: rgba(232, 226, 212, 0.32); outline: none; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 13px; height: 13px; border-radius: 50%; background: #f3eee2; cursor: pointer; box-shadow: 0 0 8px rgba(243, 238, 226, 0.5); }
+  input[type=range]::-moz-range-thumb { width: 13px; height: 13px; border: none; border-radius: 50%; background: #f3eee2; cursor: pointer; }
+
+  #buttons { position: fixed; right: clamp(26px, 5vmin, 70px); bottom: clamp(26px, 5.6vmin, 78px); z-index: 7; display: flex; flex-direction: column; gap: 9px; align-items: flex-end; pointer-events: auto; }
+  .btn { font-family: inherit; font-variant: small-caps; letter-spacing: 0.2em; font-size: clamp(11px, 1.35vmin, 15px); color: rgba(232, 226, 212, 0.8); background: transparent; border: 1px solid rgba(232, 226, 212, 0.42); padding: 4px 16px; cursor: pointer; transition: color 0.2s ease, border-color 0.2s ease; min-width: 156px; text-align: center; }
+  .btn:hover { color: #f3eee2; border-color: rgba(232, 226, 212, 0.7); }
+  .btn.on { color: #f3eee2; border-color: rgba(232, 226, 212, 0.7); background: rgba(232, 226, 212, 0.06); }
+  #bBrushAdd, #bBrushSub { display: none; }
+  body.paint-mode #bBrushAdd, body.paint-mode #bBrushSub { display: block; }
+
+  #credit {
+    position: fixed; bottom: clamp(18px, 4vmin, 50px); left: clamp(26px, 5vmin, 70px);
+    z-index: 6; pointer-events: auto; font-variant: small-caps; letter-spacing: 0.18em;
+    font-size: clamp(9px, 1.1vmin, 12px); color: rgba(232, 226, 212, 0.42);
+  }
+  #credit a { color: rgba(232, 226, 212, 0.62); text-decoration: none; }
+  #credit a:hover { color: rgba(232, 226, 212, 0.85); }
+  body.paint-mode #credit { display: none; }
+</style>
+</head>
+<body>
+  <noscript>
+    <p>xlovecam Jiggle Physics — reference standard for weight-painted soft-body jiggle. Enable JavaScript for the interactive demo.</p>
+  </noscript>
+  <canvas id="gl"></canvas>
+  <div id="frame"></div>
+
+  <div id="head">Jiggle Physics · xlovecam</div>
+  <div id="read"><span id="geoName">Orb</span></div>
+  <div id="hint">drag orbit (drives jiggle) &bull; shift-drag move object &bull; wheel zoom &bull; P paint (UV map) &bull; +/- brush &bull; W show &bull; G geometry &bull; space shake</div>
+  <div id="credit"><a href="https://github.com/xloveee/jiggle-physics" rel="author">xlovecam</a> jiggle physics standard</div>
+
+  <div id="uvpaint">
+    <h2 id="uvTitle">weight map</h2>
+    <canvas id="uvCanvas" width="512" height="256"></canvas>
+    <div id="uvGains">
+      <div class="row uv-row"><label for="gAll">all</label><input id="gAll" type="range" min="0" max="1" step="0.01" value="1" /><output id="gAllV"></output></div>
+      <div class="row uv-row"><label for="gBone0">bone 0</label><input id="gBone0" type="range" min="0" max="1" step="0.01" value="1" /><output id="gBone0V"></output></div>
+      <div class="row uv-row"><label for="gBone1">bone 1</label><input id="gBone1" type="range" min="0" max="1" step="0.01" value="1" /><output id="gBone1V"></output></div>
+      <div class="row uv-row"><label for="gBone2">bone 2</label><input id="gBone2" type="range" min="0" max="1" step="0.01" value="1" /><output id="gBone2V"></output></div>
+    </div>
+  </div>
+
+  <div id="panel">
+    <div class="row"><label for="kStiff">stiffness</label><input id="kStiff" type="range" min="10" max="160" step="1" value="96" /><output id="kStiffV"></output></div>
+    <div class="row"><label for="kDamp">damping</label><input id="kDamp" type="range" min="0" max="14" step="0.1" value="2.8" /><output id="kDampV"></output></div>
+    <div class="row"><label for="kMass">mass</label><input id="kMass" type="range" min="0" max="2.5" step="0.05" value="0.45" /><output id="kMassV"></output></div>
+    <div class="row"><label for="kGrav">gravity</label><input id="kGrav" type="range" min="0" max="8" step="0.1" value="2.2" /><output id="kGravV"></output></div>
+    <div class="row"><label for="oDrive">orbit drive</label><input id="oDrive" type="range" min="0" max="24" step="0.5" value="1.5" /><output id="oDriveV"></output></div>
+    <div class="row"><label for="bSize">brush size</label><input id="bSize" type="range" min="0.15" max="0.85" step="0.01" value="0.15" /><output id="bSizeV"></output></div>
+    <div class="row"><label for="bWeight">brush weight</label><input id="bWeight" type="range" min="0" max="1" step="0.01" value="0.86" /><output id="bWeightV"></output></div>
+    <div class="row"><label for="fRadius">force radius</label><input id="fRadius" type="range" min="0.08" max="1.4" step="0.01" value="0.15" /><output id="fRadiusV"></output></div>
+  </div>
+
+  <div id="buttons">
+    <button id="bGeo" class="btn" type="button">geometry: orb</button>
+    <button id="bPaint" class="btn" type="button">paint weights</button>
+    <button id="bBrushAdd" class="btn on" type="button">brush +</button>
+    <button id="bBrushSub" class="btn" type="button">brush −</button>
+    <button id="bShow" class="btn on" type="button">hide weights</button>
+    <button id="bRandom" class="btn" type="button">random paint</button>
+    <button id="bShake" class="btn" type="button">shake</button>
+    <button id="bClear" class="btn" type="button">clear weights</button>
+    <button id="bReset" class="btn" type="button">reset</button>
+  </div>
+
+<script type="x-shader/x-fragment" id="frag">
+precision highp float;
+
+uniform vec2  u_res;
+uniform float u_time;
+uniform vec3  u_body;     // rigid body translation (full 3D)
+uniform float u_geo;      // 0 = orb, 1 = capsule, 2 = torus, 3 = air dancer, 4 = walker
+uniform float u_paint;    // 1 = visualise the painted jiggle weights
+uniform float u_yaw;      // camera azimuth
+uniform float u_pitch;    // camera elevation
+uniform float u_zoom;     // camera dolly
+
+// ---- weight paint: per-geometry auto-unwrap texture --------------------
+// Each shape picks the projection Blender would use (sphere / cylinder / torus).
+// Shape-space position -> UV lookup; one texture fetch per sample.
+#define NBONE 3
+#define TAU 6.28318530718
+#define PI  3.14159265359
+uniform sampler2D u_wTex;           // sharp painted weights (display / heatmap)
+uniform sampler2D u_fTex;           // force-spread copy (blurred by force radius)
+uniform float     u_hasWeights;     // 1 when any weight is painted
+uniform vec3      u_jig[NBONE];     // per-bone soft-mass offsets, from the physics
+
+// ---- primitive signed distance functions ----------------------------------
+float sdSphere(vec3 p, float r){ return length(p) - r; }
+float sdCapsule(vec3 p, float h, float r){ p.y -= clamp(p.y, -h, h); return length(p) - r; }
+float sdTorus(vec3 p, vec2 t){ vec2 q = vec2(length(p.xz) - t.x, p.y); return length(q) - t.y; }
+
+// capsule between two points a and b (limb segment)
+float sdSeg(vec3 p, vec3 a, vec3 b, float r){
+    vec3 pa = p - a, ba = b - a;
+    float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
+    return length(pa - ba * h) - r;
+}
+// smooth union: blends limbs into one organic body (and under-estimates the
+// true distance, so it stays safe for the ray-marcher).
+float smin(float a, float b, float k){
+    float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
+    return mix(b, a, h) - k * h * (1.0 - h);
+}
+
+// "walker": a capsule-built humanoid with a procedural walk cycle. Arms and
+// legs counter-swing on sin(u_time); the body bobs at twice that rate. Female
+// anatomy: narrowed waist, fuller hips, breasts and glutes — each with a small
+// stride-driven bounce. Painted jiggle weights still react to orbit/move on top.
+float sdWalker(vec3 p){
+    float ph = u_time * 3.2;             // step cadence
+    float s  = sin(ph);                  // primary swing
+    float bob = abs(cos(ph));            // body rises/falls each step
+    p.y -= bob * 0.045 - 0.03;           // vertical bob with the stride
+    float swing = s * 0.34;              // limb travel (z)
+    float soft = (bob - 0.5) * 0.018;    // soft-tissue bounce offset
+
+    float d = sdSeg(p, vec3(0.0, -0.02, 0.0), vec3(0.0, 0.55, 0.0), 0.165);  // torso (slimmer waist)
+    d = smin(d, sdSphere(p - vec3(0.0, 0.84, 0.0), 0.17), 0.06);             // head
+    d = smin(d, sdSeg(p, vec3(-0.22, 0.55, 0.0), vec3(0.22, 0.55, 0.0), 0.08), 0.06);  // shoulders
+    d = smin(d, sdSeg(p, vec3(-0.20, -0.06, 0.0), vec3(0.20, -0.06, 0.0), 0.135), 0.08); // fuller hips
+
+    // breasts: front of chest, with a little downward bounce on each step
+    vec3 bl = p - vec3(-0.105, 0.345 - soft, 0.135);
+    vec3 br = p - vec3( 0.105, 0.345 - soft, 0.135);
+    d = smin(d, sdSphere(bl, 0.115), 0.07);
+    d = smin(d, sdSphere(br, 0.115), 0.07);
+
+    // glutes: rear of pelvis, fuller, with the same stride bounce
+    vec3 gl = p - vec3(-0.105, -0.10 - soft, -0.115);
+    vec3 gr = p - vec3( 0.105, -0.10 - soft, -0.115);
+    d = smin(d, sdSphere(gl, 0.135), 0.075);
+    d = smin(d, sdSphere(gr, 0.135), 0.075);
+
+    d = smin(d, sdSeg(p, vec3(-0.22, 0.52, 0.0), vec3(-0.30, 0.06, -swing), 0.066), 0.05); // L arm
+    d = smin(d, sdSeg(p, vec3( 0.22, 0.52, 0.0), vec3( 0.30, 0.06,  swing), 0.066), 0.05); // R arm
+
+    d = smin(d, sdSeg(p, vec3(-0.13, -0.06, 0.0), vec3(-0.15, -0.95,  swing), 0.098), 0.07); // L leg
+    d = smin(d, sdSeg(p, vec3( 0.13, -0.06, 0.0), vec3( 0.15, -0.95, -swing), 0.098), 0.07); // R leg
+    return d;
+}
+
+// "air dancer": a tall tube whose centreline whips back and forth, growing
+// toward the top, feet pinned to the ground. The built-in sway makes it flail
+// on its own; painted jiggle weights add inertial reaction on top of it. The
+// horizontal warp inflates the gradient, so we shrink the result (Lipschitz
+// safety) to keep the ray-marcher from over-stepping the surface.
+float sdAirDancer(vec3 p){
+    float h = 1.0;                                   // half height (feet at y=-1)
+    float t = clamp((p.y + h) / (2.0 * h), 0.0, 1.0); // 0 feet .. 1 head
+    float sway = t * t;                              // anchored at the feet
+    // gentle base sway; painted regions flail much harder (see shapeAt).
+    float ax = sin(p.y * 3.4 + u_time * 5.0) * 0.22 * sway;
+    float az = cos(p.y * 2.7 + u_time * 4.0) * 0.16 * sway;
+    float yy = p.y - clamp(p.y, -h, h);              // collapse the trunk segment
+    vec2  xz = p.xz - vec2(ax, az);
+    float r  = mix(0.26, 0.09, t);                   // tapers toward the head
+    return (length(vec3(xz.x, yy, xz.y)) - r) * 0.4;
+}
+
+float sdfShape(vec3 q){
+    if (u_geo < 0.5)      return sdSphere(q, 0.72);
+    else if (u_geo < 1.5) return sdCapsule(q, 0.50, 0.46);
+    else if (u_geo < 2.5) return sdTorus(q, vec2(0.66, 0.30));
+    else if (u_geo < 3.5) return sdAirDancer(q);
+    else                  return sdWalker(q);
+}
+
+// ---- xlovecam JIGGLE PHYSICS STANDARD --------------------------------------
+// Displace each surface region by (its painted weight) * (its bone's offset).
+// One line is all a game engine needs: vertex += weight * boneJiggle.
+// Reference: https://github.com/xloveee/jiggle-physics — by xlovecam.
+// (Here, since we ray-march an SDF, we sample the base shape at q - offset.)
+// Per-geometry Smart-UV-style unwrap (must match jiggle-app.js shapeToUV).
+//   orb        — sphere lat/long (equirectangular)
+//   capsule    — cylinder along Y
+//   torus      — major ring U + tube V
+//   air dancer — cylinder along Y, angle taken around the SWAYING centreline so
+//                 paint stays glued to the tube (a true material coordinate)
+//   walker     — cylinder along Y, seam at back (-Z), front (+Z) at u=0.5
+vec2 shapeToUV(vec3 q){
+    if (u_geo < 0.5){
+        vec3 d = normalize(q);
+        return vec2(atan(d.z, d.x) / TAU + 0.5, acos(clamp(d.y, -1.0, 1.0)) / PI);
+    }
+    if (u_geo < 1.5){
+        return vec2(atan(q.x, q.z) / TAU + 0.5, clamp((q.y + 0.5) / 1.0, 0.0, 1.0));
+    }
+    if (u_geo < 2.5){
+        float rho = length(q.xz);
+        return vec2(atan(q.x, q.z) / TAU + 0.5, atan(q.y, rho - 0.66) / TAU + 0.5);
+    }
+    if (u_geo < 3.5){
+        // unsway: subtract the centreline offset (mirrors sdAirDancer) so the
+        // angle is measured around the local tube axis, not the world origin.
+        float t = clamp((q.y + 1.0) / 2.0, 0.0, 1.0);
+        float sway = t * t;
+        float ax = sin(q.y * 3.4 + u_time * 5.0) * 0.22 * sway;
+        float az = cos(q.y * 2.7 + u_time * 4.0) * 0.16 * sway;
+        return vec2(atan(q.x - ax, q.z - az) / TAU + 0.5, t);
+    }
+    return vec2(atan(q.x, q.z) / TAU + 0.5, clamp((q.y + 0.95) / 1.79, 0.0, 1.0));
+}
+
+vec3 lookupWeights(vec3 x, sampler2D tex){
+    if (length(x) < 1e-5) return vec3(0.0);
+    return texture2D(tex, shapeToUV(x)).rgb;
+}
+
+float combineW(float wb0, float wb1, float wb2){
+    return 1.0 - (1.0 - wb0) * (1.0 - wb1) * (1.0 - wb2);   // combined softness
+}
+
+// Local mesh thickness in [0,1]: how much solid backs this point. We take the
+// base-shape normal and probe one step inward — if we're still deep inside the
+// mesh the region is fat (1, free to jiggle); if the probe pierces straight
+// through a thin limb / shell / edge it returns ~0 (a small surface can't hold
+// much jiggle). Scales the displacement so motion is relative to available mass.
+float baseThickness(vec3 q){
+    vec2 e = vec2(0.0025, -0.0025);
+    vec3 n = normalize(
+        e.xyy * sdfShape(q + e.xyy) +
+        e.yyx * sdfShape(q + e.yyx) +
+        e.yxy * sdfShape(q + e.yxy) +
+        e.xxx * sdfShape(q + e.xxx));   // outward normal of the base shape
+    float pen = sdfShape(q - n * 0.13); // one probe inward (0.13 ~ "enough flesh")
+    return clamp(-pen / 0.13, 0.0, 1.0);
+}
+
+// Per-region jiggle displacement: weight * bone offset, then asymmetric soft-
+// body squash & stretch along the motion vector.
+vec3 jiggleOffset(vec3 q, float wb0, float wb1, float wb2, float w){
+    vec3 off = wb0 * u_jig[0] + wb1 * u_jig[1] + wb2 * u_jig[2];
+
+    // Motion relative to available mesh: a thin region has little mass to throw
+    // around, so scale the displacement by the local thickness. The probe runs
+    // the base SDF 5x, so it's gated to skip tiny idle/sag offsets (the idle
+    // slowdown that vanishes when weights are cleared). CRITICAL: the thickness
+    // must fade IN continuously from the gate, otherwise the on/off step leaves a
+    // visible seam along the |off| iso-contour (a circle around each brush). The
+    // smoothstep makes the factor == 1 at the gate, matching the un-probed side.
+    float ol = length(off);
+    if (ol > 0.05) {
+        float th = baseThickness(q);
+        off *= mix(1.0, th, smoothstep(0.05, 0.16, ol));
+    }
+
+    // Soft-body squash & stretch: a uniform weight should DEFORM the mesh along
+    // the motion vector, not merely translate it. We bend the displacement by
+    // the surface DIRECTION (angular -> smooth, crease-free; the radial version
+    // is what produced the ring artifact). The deformation is ASYMMETRIC: the
+    // mass lags, so the TRAILING side (where it piles up) bulges into a teardrop
+    // while the LEADING face stays firm / flattens. A symmetric stretch reads as
+    // a mirrored copy of the motion on the far side and breaks the illusion.
+    float jl = length(off);
+    if (jl > 1e-5){
+        float de = min(jl, 0.25);                  // clamp so fast jiggles stay march-stable
+        vec3 jd = off / jl;                        // direction the soft mass lags toward
+        vec3 n  = q / max(length(q), 1e-4);        // surface direction
+        float al    = dot(n, jd);
+        float bulge = max(al, 0.0);                // trailing hemisphere: mass piles up
+        float lead  = max(-al, 0.0);               // leading hemisphere: firms / flattens
+        vec3 nperp = n - jd * al;
+        off += jd * (de * (1.10 * bulge - 0.40 * lead)) // big trailing bulge, slight leading flatten
+             - nperp * (de * 0.40 * bulge);             // pinch only the trailing waist (teardrop tail)
+    }
+    // air dancer only: painted softness drives extra fast flailing, so weight
+    // visibly controls how wildly a region whips (on top of its inertial jiggle).
+    if (u_geo > 2.5 && u_geo < 3.5){
+        off.x += sin(q.y * 4.6 + u_time * 11.0) * 0.42 * w;
+        off.z += cos(q.y * 3.7 + u_time * 9.0)  * 0.30 * w;
+    }
+    return off;
+}
+
+float shapeAt(vec3 p, out float w){
+    vec3 q = p - u_body;
+    w = 0.0;
+
+    // Far-field skip — one texture lookup only where displacement can matter.
+    if (u_hasWeights > 0.5){
+        float base = sdfShape(q);
+        float mo = (u_geo > 2.5 && u_geo < 3.5) ? 1.1 : 0.9;
+        if (base > 2.0 * mo) return base - mo;
+    }
+
+    vec3 fw = lookupWeights(q, u_fTex);
+    float fb0 = fw.x, fb1 = fw.y, fb2 = fw.z;
+    // The display softness is only needed mid-march for the air dancer's flail;
+    // every other shape ignores it during marching (final colour uses weightAt
+    // in paint mode, or skips it entirely).
+    if (u_geo > 2.5 && u_geo < 3.5){
+        vec3 dw = lookupWeights(q, u_wTex);
+        w = combineW(dw.x, dw.y, dw.z);
+    }
+    vec3 off = jiggleOffset(q, fb0, fb1, fb2, w);
+    // The jiggle is a domain warp, so the displaced field can over-estimate the
+    // true distance — during fast motion the marcher would step straight through
+    // the surface (a hole). Shrink the reported distance where the displacement
+    // is large (Lipschitz safety) so the step stays conservative.
+    float safe = 1.0 - 0.55 * clamp(length(off) / 0.4, 0.0, 1.0);
+    return sdfShape(q - off) * safe;
+}
+
+// Display weight, evaluated in REST space (q - off). The weight is a property of
+// the material, so it must be read at the undeformed position; sampling it at
+// the deformed surface makes the heatmap swim as the shape stretches/thins.
+float weightAt(vec3 p){
+    vec3 q = p - u_body;
+    vec3 dw = lookupWeights(q, u_wTex);
+    vec3 fw = lookupWeights(q, u_fTex);
+    vec3 off = jiggleOffset(q, fw.x, fw.y, fw.z, combineW(dw.x, dw.y, dw.z));
+    vec3 rw = lookupWeights(q - off, u_wTex);          // pass 2: read at rest position
+    return combineW(rw.x, rw.y, rw.z);
+}
+
+float scene(vec3 p){
+    float w;
+    float ds = shapeAt(p, w);
+    float dg = p.y + 1.0;                  // ground plane at y = -1
+    return min(ds, dg);
+}
+
+// cheap scene for shadows: the base (undisplaced) shape. The jiggle offset is
+// tiny, so skipping the brush/weight loop here is invisible but avoids the
+// per-brush work on every shadow step — a big saving per pixel.
+float sceneBase(vec3 p){
+    float ds = sdfShape(p - u_body);
+    float dg = p.y + 1.0;
+    return min(ds, dg);
+}
+
+vec3 calcNormal(vec3 p){
+    vec2 e = vec2(0.0016, 0.0);
+    return normalize(vec3(
+        scene(p + e.xyy) - scene(p - e.xyy),
+        scene(p + e.yxy) - scene(p - e.yxy),
+        scene(p + e.yyx) - scene(p - e.yyx)));
+}
+
+float softShadow(vec3 ro, vec3 rd){
+    float res = 1.0;
+    float t = 0.05;
+    for (int i = 0; i < 14; i++){
+        float h = sceneBase(ro + rd * t);
+        res = min(res, 9.0 * h / t);
+        t += clamp(h, 0.04, 0.30);
+        if (res < 0.04 || t > 5.0) break;
+    }
+    return clamp(res, 0.0, 1.0);
+}
+
+// weight heatmap: blue (anchored) -> green -> red (soft)
+vec3 weightColor(float w){
+    vec3 c = mix(vec3(0.12, 0.25, 0.85), vec3(0.10, 0.80, 0.45), smoothstep(0.0, 0.5, w));
+    c = mix(c, vec3(0.95, 0.28, 0.14), smoothstep(0.5, 1.0, w));
+    return c;
+}
+
+void main(){
+    vec2 uv = (gl_FragCoord.xy - 0.5 * u_res) / min(u_res.x, u_res.y);
+
+    // orbit camera
+    float cy = cos(u_yaw), sy = sin(u_yaw);
+    float cp = cos(u_pitch), sp = sin(u_pitch);
+    float R = 3.4 * u_zoom;
+    vec3 ro = vec3(R * sy * cp, R * sp, R * cy * cp);
+    vec3 ta = vec3(0.0, -0.05, 0.0);
+    vec3 ww = normalize(ta - ro);
+    vec3 uu = normalize(cross(ww, vec3(0.0, 1.0, 0.0)));
+    vec3 vv = cross(uu, ww);
+    vec3 rd = normalize(uv.x * uu + uv.y * vv + 1.6 * ww);
+
+    vec3 lig = normalize(vec3(-0.5, 0.85, 0.35));
+    vec3 bg = mix(vec3(0.05, 0.05, 0.07), vec3(0.02, 0.02, 0.03), length(uv));
+
+    float t = 0.0;
+    bool hit = false;
+    int steps = 0;
+    for (int i = 0; i < 110; i++){
+        steps = i;
+        float d = scene(ro + rd * t);
+        if (d < 0.0010 * t + 0.0008){ hit = true; break; }
+        t += d * 0.85;                 // mild relaxation: warped field overstep insurance
+        if (t > 12.0) break;
+    }
+
+    vec3 col = bg;
+    if (hit){
+        vec3 p = ro + rd * t;
+        vec3 n = calcNormal(p);
+        float w;
+        float ds = shapeAt(p, w);
+        bool isGround = (p.y + 1.0) < ds + 0.0006;
+        if (u_paint > 0.5) w = weightAt(p);    // rest-space weight: heatmap stays glued on
+
+        float dif = clamp(dot(n, lig), 0.0, 1.0) * softShadow(p + n * 0.02, lig);
+        float amb = 0.25 + 0.25 * n.y;
+        float ao = 1.0 - float(steps) / 110.0;
+
+        if (isGround){
+            col = vec3(0.15, 0.15, 0.17) * (amb + 0.85 * dif);
+        } else {
+            vec3 base = u_paint > 0.5
+                ? weightColor(w)
+                : mix(vec3(0.86, 0.62, 0.60), vec3(0.96, 0.86, 0.80), 0.5 + 0.5 * n.y);
+            float fre = pow(1.0 - clamp(dot(n, -rd), 0.0, 1.0), 3.0);
+            col = base * (0.20 + 0.9 * dif) + amb * base * 0.4 + fre * 0.4;
+        }
+        col *= 0.6 + 0.4 * ao;
+        col = mix(col, bg, smoothstep(7.5, 11.0, t));
+    }
+
+    col = col / (col + 0.7);                 // tonemap
+    col = pow(max(col, 0.0), vec3(0.85));
+    gl_FragColor = vec4(col, 1.0);
+}
+</script>
+
+<!-- physics engine (pure simulation) then the UI/UX + rendering glue -->
+<script src="jiggle-physics.js"></script>
+<script src="jiggle-app.js"></script>
+</body>
+</html>
