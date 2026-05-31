@@ -12,9 +12,9 @@ across engines.
 > Paint weight on a UV map, drive randomized spring bones from parent motion,  
 > one rule: `vertex += weight * boneJiggle`.
 
-**[Live demo](https://xloveee.github.io/jiggle-physics/)** · **[Repository](https://github.com/xloveee/jiggle-physics)** · **Author: [xlovecam](https://github.com/xloveee)**
+**[Live demo](https://xloveee.github.io/jiggle-physics/)** · **Author: [xlovecam](https://github.com/xloveee)**
 
-No build step. No package manager. Open `index.html` in any WebGL-capable browser.
+No build step. Open `index.html` in any WebGL-capable browser.
 
 ---
 
@@ -54,13 +54,12 @@ jiggle/
 ├── index.html          # markup, styles, GLSL shader
 ├── jiggle-physics.js   # pure simulation (no DOM, no WebGL)
 ├── jiggle-app.js       # UI, UV weight painting, render loop
-└── README.md
+└── asset/              # demo GIF
 ```
 
-### `jiggle-physics.js` — the xlovecam engine
+### `jiggle-physics.js` — simulation engine
 
-`createJigglePhysics({ bones: 3 })` — drop into any game loop. Exposes
-`JIGGLE_PHYSICS_META` (`standard: "xlovecam-jiggle-physics"`, author, URLs).
+`createJigglePhysics({ bones: 3 })` — drop into any game loop.
 
 - **No DOM, no WebGL** — renderer-agnostic.
 - Each bone is a damped spring driven two ways:
@@ -185,49 +184,6 @@ open index.html
 # or serve statically:
 python3 -m http.server 8080
 ```
-
----
-
-## Showing the demo on GitHub
-
-Google, Discord, Slack, and most link previews **do not play video** — they only
-show a static image (Open Graph). GitHub README video embeds work on github.com
-but not in search results or external cards.
-
-| Surface | What viewers see | Best format |
-|--------|------------------|-------------|
-| **README hero** | Animated demo at top of repo | `asset/jojo-info-demo.gif` via `<img>` (works everywhere on GitHub) |
-| **Google / link previews** | One still frame | `asset/social-preview.png` (1280×640) — set under repo **Settings → Social preview** |
-| **Full-quality playback** | Video player on github.com only | Optional bare link: `…/blob/main/asset/jojo-info-edited.mp4` |
-
-### GIF banner (recommended)
-
-The README uses `asset/jojo-info-demo.gif` (~8.5 MB, 800×450, 12 fps, full clip).
-Standard markdown/GitHub `<img>` — animates on the repo page, no special embed URL needed.
-
-To regenerate from the source `.mov`:
-
-```bash
-ffmpeg -i asset/jojo-info-edited.mov -vf "fps=12,scale=800:-1:flags=lanczos,palettegen" /tmp/p.png
-ffmpeg -i asset/jojo-info-edited.mov -i /tmp/p.png \
-  -lavfi "fps=12,scale=800:-1:flags=lanczos[x];[x][1:v]paletteuse" asset/jojo-info-demo.gif
-```
-
-### Social preview (Google / shared links)
-
-1. Repo **Settings → General → Social preview → Edit**.
-2. Upload `asset/social-preview.png` (1280×640 still from the demo).
-3. Save — card images update within a few minutes.
-
-### Optional MP4 embed
-
-On github.com only, a bare link on its own line auto-embeds a player:
-
-`https://github.com/xloveee/jiggle-physics/blob/main/asset/jojo-info-edited.mp4`
-
-Use this in addition to the GIF if you want click-to-play with sound on the repo page itself.
-
----
 
 ## License
 
