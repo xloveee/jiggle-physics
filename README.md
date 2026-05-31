@@ -1,4 +1,4 @@
-# xlovecam Jiggle Physics
+# A Jiggle Physics Standard - Xlovecam 
 
 <p align="center">
   <img src="asset/social-preview.png" alt="Jiggle physics demo" width="100%">
