@@ -1,4 +1,4 @@
-# xlovecam Jiggle Physics
+# A Jiggle Physics Standard - Xlovecam
 
 <p align="center">
   <img src="asset/jiggle-physics-demo.gif" alt="Jiggle physics demo" width="100%">
@@ -54,7 +54,8 @@ jiggle/
 ├── index.html          # markup, styles, GLSL shader
 ├── jiggle-physics.js   # pure simulation (no DOM, no WebGL)
 ├── jiggle-app.js       # UI, UV weight painting, render loop
-└── asset/              # demo GIF
+└── asset/
+    └── jiggle-physics-demo.gif
 ```
 
 ### `jiggle-physics.js` — simulation engine
