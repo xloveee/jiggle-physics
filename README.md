@@ -12,7 +12,7 @@ across engines.
 > Paint weight on a UV map, drive randomized spring bones from parent motion,  
 > one rule: `vertex += weight * boneJiggle`.
 
-**[Live demo](https://xloveee.github.io/jiggle-physics/)** · **Author: [xlovecam](https://github.com/xloveee)**
+**Author: [xlovecam](https://github.com/xloveee)**
 
 No build step. Open `index.html` in any WebGL-capable browser.
 
