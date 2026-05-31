@@ -1,5 +1,11 @@
 # xlovecam Jiggle Physics
 
+<p align="center">
+  <img src="asset/social-preview.png" alt="Jiggle physics demo" width="100%">
+</p>
+
+https://github.com/xloveee/jiggle-physics/blob/main/asset/jojo-info-edited.mp4
+
 **A reference standard for real-time jiggle physics** by **xlovecam** — how to
 paint soft regions, drive damped spring bones, and deform meshes consistently
 across engines.
@@ -181,6 +187,41 @@ open index.html
 # or serve statically:
 python3 -m http.server 8080
 ```
+
+---
+
+## Showing the demo on GitHub
+
+GitHub supports three different “banner” surfaces — they are not the same thing:
+
+| Surface | What it is | Format |
+|--------|------------|--------|
+| **README hero** | Video player at the top of the repo page | `.mp4` / `.mov` / `.webm` in the repo, linked on its own line |
+| **Social preview** | Wide card when the repo URL is pasted in Slack, X, Discord, etc. | Static image **1280×640** (`asset/social-preview.png`) |
+| **Profile banner** | Banner on your GitHub profile | Separate from any repo — set under profile **Customize profile** |
+
+### README video (repo header)
+
+1. Commit `asset/jojo-info-edited.mp4` (or the original `.mov`).
+2. Put a **bare link** to the file on its own line in `README.md` — GitHub auto-embeds it as a player:
+
+   `https://github.com/xloveee/jiggle-physics/blob/main/asset/jojo-info-edited.mp4`
+
+   A clickable poster image above the link (`asset/social-preview.png`) gives a banner feel before the page loads the player.
+
+**Alternative:** edit the README on github.com, drag the video into the editor, and GitHub uploads it to `user-attachments` — also embeds, but the file lives outside the repo tree.
+
+### Social preview (link card banner)
+
+1. Repo **Settings → General → Social preview → Edit**.
+2. Upload `asset/social-preview.png` (1280×640 frame extracted from the demo).
+3. Save — previews update within a few minutes.
+
+### Tips
+
+- Prefer **MP4 (H.264)** over `.mov` for compatibility; the repo includes a remuxed copy of the same clip.
+- Keep video under ~25 MB if possible; this clip is ~17 MB.
+- Animated GIFs work in README but are usually much larger and lower quality than MP4.
 
 ---
 
