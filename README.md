@@ -1,10 +1,8 @@
-# A Jiggle Physics Standard - Xlovecam 
+# xlovecam Jiggle Physics
 
 <p align="center">
-  <img src="asset/social-preview.png" alt="Jiggle physics demo" width="100%">
+  <img src="asset/jiggle-physics-demo.gif" alt="Jiggle physics demo" width="100%">
 </p>
-
-https://github.com/xloveee/jiggle-physics/blob/main/asset/jojo-info-edited.mp4
 
 **A reference standard for real-time jiggle physics** by **xlovecam** — how to
 paint soft regions, drive damped spring bones, and deform meshes consistently
@@ -192,36 +190,42 @@ python3 -m http.server 8080
 
 ## Showing the demo on GitHub
 
-GitHub supports three different “banner” surfaces — they are not the same thing:
+Google, Discord, Slack, and most link previews **do not play video** — they only
+show a static image (Open Graph). GitHub README video embeds work on github.com
+but not in search results or external cards.
 
-| Surface | What it is | Format |
-|--------|------------|--------|
-| **README hero** | Video player at the top of the repo page | `.mp4` / `.mov` / `.webm` in the repo, linked on its own line |
-| **Social preview** | Wide card when the repo URL is pasted in Slack, X, Discord, etc. | Static image **1280×640** (`asset/social-preview.png`) |
-| **Profile banner** | Banner on your GitHub profile | Separate from any repo — set under profile **Customize profile** |
+| Surface | What viewers see | Best format |
+|--------|------------------|-------------|
+| **README hero** | Animated demo at top of repo | `asset/jojo-info-demo.gif` via `<img>` (works everywhere on GitHub) |
+| **Google / link previews** | One still frame | `asset/social-preview.png` (1280×640) — set under repo **Settings → Social preview** |
+| **Full-quality playback** | Video player on github.com only | Optional bare link: `…/blob/main/asset/jojo-info-edited.mp4` |
 
-### README video (repo header)
+### GIF banner (recommended)
 
-1. Commit `asset/jojo-info-edited.mp4` (or the original `.mov`).
-2. Put a **bare link** to the file on its own line in `README.md` — GitHub auto-embeds it as a player:
+The README uses `asset/jojo-info-demo.gif` (~8.5 MB, 800×450, 12 fps, full clip).
+Standard markdown/GitHub `<img>` — animates on the repo page, no special embed URL needed.
 
-   `https://github.com/xloveee/jiggle-physics/blob/main/asset/jojo-info-edited.mp4`
+To regenerate from the source `.mov`:
 
-   A clickable poster image above the link (`asset/social-preview.png`) gives a banner feel before the page loads the player.
+```bash
+ffmpeg -i asset/jojo-info-edited.mov -vf "fps=12,scale=800:-1:flags=lanczos,palettegen" /tmp/p.png
+ffmpeg -i asset/jojo-info-edited.mov -i /tmp/p.png \
+  -lavfi "fps=12,scale=800:-1:flags=lanczos[x];[x][1:v]paletteuse" asset/jojo-info-demo.gif
+```
 
-**Alternative:** edit the README on github.com, drag the video into the editor, and GitHub uploads it to `user-attachments` — also embeds, but the file lives outside the repo tree.
-
-### Social preview (link card banner)
+### Social preview (Google / shared links)
 
 1. Repo **Settings → General → Social preview → Edit**.
-2. Upload `asset/social-preview.png` (1280×640 frame extracted from the demo).
-3. Save — previews update within a few minutes.
+2. Upload `asset/social-preview.png` (1280×640 still from the demo).
+3. Save — card images update within a few minutes.
 
-### Tips
+### Optional MP4 embed
 
-- Prefer **MP4 (H.264)** over `.mov` for compatibility; the repo includes a remuxed copy of the same clip.
-- Keep video under ~25 MB if possible; this clip is ~17 MB.
-- Animated GIFs work in README but are usually much larger and lower quality than MP4.
+On github.com only, a bare link on its own line auto-embeds a player:
+
+`https://github.com/xloveee/jiggle-physics/blob/main/asset/jojo-info-edited.mp4`
+
+Use this in addition to the GIF if you want click-to-play with sound on the repo page itself.
 
 ---
 
