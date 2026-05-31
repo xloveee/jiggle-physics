@@ -4,6 +4,7 @@
   <img src="asset/jiggle-physics-demo.gif" alt="Jiggle physics demo" width="100%">
 </p>
 
+
 **A reference standard for real-time jiggle physics** by **xlovecam** — how to
 paint soft regions, drive damped spring bones, and deform meshes consistently
 across engines.
@@ -49,11 +50,16 @@ stretch along the motion vector (trailing bulge, leading flatten).
 
 ## Architecture
 
+The **engine** and the **renderer** are separate by design. `jiggle-physics.js`
+does the math only — no DOM, no WebGL — so you can drop it into any renderer.
+This repo ships **one** such renderer (a WebGL demo in `jiggle-app.js`) to show
+the standard in action.
+
 ```
 jiggle/
 ├── index.html          # markup, styles, GLSL shader
 ├── jiggle-physics.js   # pure simulation (no DOM, no WebGL)
-├── jiggle-app.js       # UI, UV weight painting, render loop
+├── jiggle-app.js       # WebGL demo renderer (consumes the engine)
 └── asset/
     └── jiggle-physics-demo.gif
 ```
@@ -62,7 +68,7 @@ jiggle/
 
 `createJigglePhysics({ bones: 3 })` — drop into any game loop.
 
-- **No DOM, no WebGL** — renderer-agnostic.
+- **No DOM, no WebGL** — renderer-agnostic; all WebGL lives in the demo, not the engine.
 - Each bone is a damped spring driven two ways:
   - **Impulse** on parent acceleration (flicks, reversals, constructive interference).
   - **Velocity drive** — sustained lag while the parent keeps moving.
@@ -74,10 +80,12 @@ const offsets = physics.update(dt, { yaw, pitch, body: { x, y, z } });
 // Float32Array [x0,y0,z0, x1,y1,z1, ...]
 ```
 
-### `jiggle-app.js` — the demo
+### `jiggle-app.js` — the WebGL demo renderer
 
-WebGL setup, orbit camera, UV weight painting, controls, render loop. Feeds
-parent state to the engine and uploads bone offsets + weight textures to the shader.
+This is one example renderer, not part of the engine. It owns the WebGL setup,
+orbit camera, UV weight painting, controls, and render loop. Each frame it feeds
+parent state into the engine and uploads the returned bone offsets + weight
+textures to the shader.
 
 ### `index.html` — the reference scene
 
