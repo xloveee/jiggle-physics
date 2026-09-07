@@ -3,6 +3,7 @@
 /* ============================================================================
  * xlovecam Jiggle Physics — pure, dependency-free jiggle-bone reference engine.
  * https://github.com/xloveee/jiggle-physics
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * No DOM, no WebGL. One damped spring ("jiggle bone") per region; a painted
  * weight in [0,1] scales how much each vertex follows it:

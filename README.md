@@ -76,6 +76,7 @@ from a nav at the top of each page.
 
 ```
 jiggle/
+├── LICENSE              # MIT
 ├── index.html           # 3D demo: markup, styles, GLSL shader
 ├── demo-1d.html         # 1D demo: three damping regimes, exact step at any rate
 ├── demo-2d.html         # 2D demo: edge-bone presets per geometry, colliders
@@ -302,6 +303,9 @@ python3 -m http.server 8080
 
 ## License
 
-Use freely. Please attribute **xlovecam** and link to
+[BSD 3-Clause](LICENSE) — Copyright (c) 2026 **xlovecam**.
+
+Keep the copyright notice. Do not use the name **xlovecam** to endorse a
+derived product without permission. Please also link to
 [github.com/xloveee/jiggle-physics](https://github.com/xloveee/jiggle-physics)
 if you ship this standard in a project.
