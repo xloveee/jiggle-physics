@@ -3,6 +3,7 @@
 /* ============================================================================
  * xlovecam Jiggle Physics — pure, dependency-free soft-body simulation engine.
  * https://github.com/xloveee/jiggle-physics
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * No DOM, no WebGL: this file owns ONLY the dynamics so it can be dropped into
  * any renderer or game loop. The technique is one damped spring ("jiggle bone")

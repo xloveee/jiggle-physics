@@ -196,6 +196,9 @@ python3 -m http.server 8080
 
 ## License
 
-Use freely. Please attribute **xlovecam** and link to
+[BSD 3-Clause](LICENSE) — Copyright (c) 2026 **xlovecam**.
+
+Keep the copyright notice. Do not use the name **xlovecam** to endorse a
+derived product without permission. Please also link to
 [github.com/xloveee/jiggle-physics](https://github.com/xloveee/jiggle-physics)
 if you ship this standard in a project.
