@@ -1,0 +1,39 @@
+/* Shared chrome for the 1D / 2D demo pages (the 3D page keeps its own styles). */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: #050507; overflow: hidden; }
+body {
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Times New Roman", Georgia, serif;
+  color: #e8e2d4; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+  cursor: grab; touch-action: none;
+}
+body.dragging { cursor: grabbing; }
+#c { display: block; width: 100vw; height: 100vh; }
+
+#frame { position: fixed; inset: clamp(14px, 3.2vmin, 46px); border: 1px solid rgba(232, 226, 212, 0.42); pointer-events: none; z-index: 5; }
+#frame::after { content: ""; position: absolute; inset: 6px; border: 1px solid rgba(232, 226, 212, 0.16); }
+
+#head, #read, #hint { z-index: 6; font-variant: small-caps; font-size: clamp(10px, 1.25vmin, 13px); color: rgba(232, 226, 212, 0.55); }
+#head { position: fixed; top: clamp(22px, 4.4vmin, 62px); left: clamp(26px, 5vmin, 70px); letter-spacing: 0.28em; pointer-events: none; }
+#read { position: fixed; top: clamp(22px, 4.4vmin, 62px); right: clamp(26px, 5vmin, 70px); letter-spacing: 0.16em; font-feature-settings: "tnum" 1; pointer-events: none; }
+#dims { position: fixed; top: clamp(18px, 3.8vmin, 54px); left: 50%; transform: translateX(-50%); z-index: 8; display: flex; }
+#dims a { font-variant: small-caps; letter-spacing: 0.22em; font-size: clamp(11px, 1.35vmin, 15px); color: rgba(232, 226, 212, 0.7); text-decoration: none; border: 1px solid rgba(232, 226, 212, 0.42); padding: 4px 18px; margin-left: -1px; transition: color 0.2s ease, background 0.2s ease; }
+#dims a:hover { color: #f3eee2; }
+#dims a.on { color: #050507; background: rgba(232, 226, 212, 0.85); border-color: rgba(232, 226, 212, 0.85); }
+#hint { position: fixed; left: 50%; bottom: clamp(18px, 4vmin, 50px); transform: translateX(-50%); pointer-events: none; letter-spacing: 0.18em; text-align: center; width: min(92vw, 900px); font-size: clamp(9px, 1.1vmin, 12px); color: rgba(232, 226, 212, 0.45); transition: opacity 1.4s ease 2.4s; }
+#hint.gone { opacity: 0; }
+#credit { position: fixed; bottom: clamp(18px, 4vmin, 50px); left: clamp(26px, 5vmin, 70px); z-index: 6; font-variant: small-caps; letter-spacing: 0.18em; font-size: clamp(9px, 1.1vmin, 12px); color: rgba(232, 226, 212, 0.42); }
+#credit a { color: rgba(232, 226, 212, 0.62); text-decoration: none; }
+#credit a:hover { color: rgba(232, 226, 212, 0.85); }
+
+#panel { position: fixed; left: clamp(26px, 5vmin, 70px); bottom: clamp(26px, 5.6vmin, 78px); z-index: 7; display: flex; flex-direction: column; gap: 11px; width: min(42vw, 300px); }
+.row { display: flex; align-items: center; gap: 12px; }
+.row label { flex: 0 0 76px; font-variant: small-caps; letter-spacing: 0.16em; font-size: clamp(10px, 1.2vmin, 13px); color: rgba(232, 226, 212, 0.62); }
+.row output { flex: 0 0 40px; text-align: right; font-feature-settings: "tnum" 1; font-size: clamp(10px, 1.2vmin, 12px); color: rgba(232, 226, 212, 0.85); }
+input[type=range] { -webkit-appearance: none; appearance: none; flex: 1 1 auto; height: 2px; background: rgba(232, 226, 212, 0.32); outline: none; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 13px; height: 13px; border-radius: 50%; background: #f3eee2; cursor: pointer; box-shadow: 0 0 8px rgba(243, 238, 226, 0.5); }
+input[type=range]::-moz-range-thumb { width: 13px; height: 13px; border: none; border-radius: 50%; background: #f3eee2; cursor: pointer; }
+
+#buttons { position: fixed; right: clamp(26px, 5vmin, 70px); bottom: clamp(26px, 5.6vmin, 78px); z-index: 7; display: flex; flex-direction: column; gap: 9px; align-items: flex-end; }
+.btn { font-family: inherit; font-variant: small-caps; letter-spacing: 0.2em; font-size: clamp(11px, 1.35vmin, 15px); color: rgba(232, 226, 212, 0.8); background: transparent; border: 1px solid rgba(232, 226, 212, 0.42); padding: 4px 16px; cursor: pointer; transition: color 0.2s ease, border-color 0.2s ease; min-width: 156px; text-align: center; }
+.btn:hover { color: #f3eee2; border-color: rgba(232, 226, 212, 0.7); }
+.btn.on { color: #f3eee2; border-color: rgba(232, 226, 212, 0.7); background: rgba(232, 226, 212, 0.06); }

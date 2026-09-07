@@ -1,178 +1,187 @@
 "use strict";
 
 /* ============================================================================
- * Jiggle physics engine — pure, dependency-free soft-body simulation.
+ * xlovecam Jiggle Physics — pure, dependency-free jiggle-bone reference engine.
+ * https://github.com/xloveee/jiggle-physics
  *
- * No DOM, no WebGL: this file owns ONLY the dynamics so it can be dropped into
- * any renderer or game loop. The technique is one damped spring ("jiggle bone")
- * per region; a painted weight in [0,1] scales how much each vertex follows it:
+ * No DOM, no WebGL. One damped spring ("jiggle bone") per region; a painted
+ * weight in [0,1] scales how much each vertex follows it:
  *
- *     vertex += weight * boneOffset;
+ *     vertex += Σ_b weight_b * offset_b
  *
- * Each bone is driven two ways from the parent's motion:
- *   - a discrete IMPULSE on the change in parent velocity (acceleration), which
- *     gives constructive / destructive interference on flicks and reversals;
- *   - a sustained VELOCITY DRIVE, a steady lag proportional to speed, i.e. an
- *     accumulating measure of momentum while the parent keeps moving.
+ * Each bone obeys the damped oscillator in the parent's accelerating frame:
+ *
+ *     x'' = -ω² x - 2ζω x' - a_parent + g
+ *
+ * The step is the exact closed-form solution, so it is stable for any dt and
+ * defines the reference output rather than approximating it. Parameters are
+ * the observable pair (frequency ω, damping ratio ζ); mass is not observable.
  *
  * Usage:
- *   const physics = createJigglePhysics({ bones: 3 });
- *   // every frame, feed the parent state and read back the offsets:
- *   const offsets = physics.update(dt, { yaw, pitch, body: {x,y,z} });
- *   // offsets is a Float32Array(bones*3): [x0,y0,z0, x1,y1,z1, ...]
+ *   const physics = createJigglePhysics({ bones: 3, seed: 1 });
+ *   const offsets = physics.update(dt, [ax, ay, az]);   // parent acceleration
+ *   // offsets: Float32Array(bones*3) = [x0,y0,z0, x1,y1,z1, ...]
+ *
+ * Hosts that only have a parent position can derive acceleration with
+ * createJiggleDriver (finite difference + smoothing).
+ *
+ * Extensions live beside this file and never alter the step:
+ *   jiggle-colliders.js — post-step constraint projection (plane/sphere/capsule)
+ *   jiggle-chain.js     — linked bones, acceleration propagates down the chain
  * ========================================================================== */
+
+const JIGGLE_PHYSICS_META = {
+  standard: "xlovecam-jiggle-physics",
+  author: "xlovecam",
+  repository: "https://github.com/xloveee/jiggle-physics",
+  demo: "https://xloveee.github.io/jiggle-physics/"
+};
+
+function mulberry32(a) {
+  return function () {
+    a |= 0;
+    a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+function freshSeed() {
+  return (Math.random() * 0x100000000) >>> 0;
+}
+
 function createJigglePhysics(opts) {
   opts = opts || {};
   const NBONE = opts.bones || 3;
+  const TAU = 2 * Math.PI;
+  let seed = opts.seed !== undefined ? (opts.seed >>> 0) : freshSeed();
+  let rng = mulberry32(seed);
 
-  // Tunable parameters. The UI mutates these in place (sliders).
-  // orbit = how hard orbit motion drives the jiggle (the "orbit drive" slider).
-  const P = { k: 96, c: 2.8, m: 0.45, g: 2.2, orbit: 1.5 };
+  // Tunable parameters (the UI mutates these in place).
+  // freq: natural frequency in Hz. damp: damping ratio ζ. g: gravity (accel, -y).
+  const P = { freq: 1.56, damp: 0.14, g: 2.2 };
 
-  // Driving / integration constants.
-  const J_MAX = 0.4;                  // soft cap on bone displacement
-  const BODY_GAIN = 8.0;              // object translation velocity -> parent velocity
-  const VEL_TAU = 0.012;              // ~12 ms velocity smoothing; responsive, no jitter
-  const KICK = 0.06;                  // impulse gain: parent Δv -> bone velocity
-  const VDRIVE = 0.5;                 // sustained drive: steady momentum lag while moving
-  const FIXED = 1 / 240;              // fixed physics timestep
-
-  // Per-bone state + randomized character (frequency/damping/coupling/sag).
   const bones = [];
   const offsets = new Float32Array(NBONE * 3);
   for (let i = 0; i < NBONE; i++) {
-    bones.push({ x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0,
-      mk: 1, mc: 1, cxx: 1, cxy: 0, cyx: 0, cyy: 1, gz: 0.3, gg: 0.8 });
+    bones.push({ x: [0, 0, 0], v: [0, 0, 0], mk: 1, mc: 1, gg: 0.8 });
   }
+  const eq = [0, 0, 0];
 
-  // Smoothed velocity trackers (parent motion -> bone driving).
-  let bodyVx = 0, bodyVy = 0, bodyVz = 0;
-  let bodyPrevX = 0, bodyPrevY = 0, bodyPrevZ = 0;
-  let yawVel = 0, pitchVel = 0, camYawPrev = 0, camPitchPrev = 0;
-  let pvPrevX = 0, pvPrevY = 0, pvPrevZ = 0;   // last frame's parent velocity
-  let pvX = 0, pvY = 0, pvZ = 0;               // current parent velocity (sustained driver)
-  let acc = 0;                                 // fixed-timestep accumulator
-  let primed = false;                          // suppress the first-frame velocity spike
-
-  // Reseed each bone's character — gives a fresh combination of out-of-sync
-  // jiggles so painted regions never wobble in lockstep.
-  function reseed() {
-    const rnd = (a, b) => a + Math.random() * (b - a);
+  // Seed each bone's character so painted regions never wobble in lockstep.
+  function reseed(s) {
+    seed = s === undefined ? freshSeed() : (s >>> 0);
+    rng = mulberry32(seed);
+    const rnd = (a, b) => a + rng() * (b - a);
     for (let i = 0; i < NBONE; i++) {
       const b = bones[i];
-      b.mk = rnd(0.45, 1.9);              // frequency multiplier (stiffness)
-      b.mc = rnd(0.6, 1.5);               // damping multiplier
-      b.cxx = rnd(0.7, 1.3); b.cxy = rnd(-0.6, 0.6);   // parent-vel -> bone plane
-      b.cyx = rnd(-0.6, 0.6); b.cyy = rnd(0.7, 1.3);
-      b.gz = rnd(0.15, 0.6);              // depth response
-      b.gg = rnd(0.4, 1.25);             // gravity-sag scale
+      b.mk = rnd(0.45, 1.9);   // frequency multiplier
+      b.mc = rnd(0.6, 1.5);    // damping multiplier
+      b.gg = rnd(0.4, 1.25);   // gravity-sag scale
     }
   }
-  reseed();
+  reseed(seed);
 
-  function stepBodyVel(dt, body) {
-    const rawVx = (body.x - bodyPrevX) / Math.max(dt, 1e-4);
-    const rawVy = (body.y - bodyPrevY) / Math.max(dt, 1e-4);
-    const rawVz = (body.z - bodyPrevZ) / Math.max(dt, 1e-4);
-    bodyPrevX = body.x; bodyPrevY = body.y; bodyPrevZ = body.z;
-    const blend = 1 - Math.exp(-dt / VEL_TAU);
-    bodyVx += (rawVx - bodyVx) * blend;
-    bodyVy += (rawVy - bodyVy) * blend;
-    bodyVz += (rawVz - bodyVz) * blend;
-  }
-
-  function stepOrbitVel(dt, yaw, pitch) {
-    const rawYaw = (yaw - camYawPrev) / Math.max(dt, 1e-4);
-    const rawPitch = (pitch - camPitchPrev) / Math.max(dt, 1e-4);
-    camYawPrev = yaw; camPitchPrev = pitch;
-    const blend = 1 - Math.exp(-dt / VEL_TAU);
-    yawVel += (rawYaw - yawVel) * blend;
-    pitchVel += (rawPitch - pitchVel) * blend;
-  }
-
-  // Convert the change in parent velocity into a momentum impulse on each bone.
-  // Orbit pitch is inverted vs object motion (camera-relative inertia: looking
-  // down throws the mass up), while translating the object keeps its up/down.
-  function applyParentImpulse() {
-    const pvx = yawVel * P.orbit + bodyVx * BODY_GAIN;
-    const pvy = -pitchVel * P.orbit + bodyVy * BODY_GAIN;
-    const pvz = bodyVz * BODY_GAIN;
-    const dpx = pvx - pvPrevX, dpy = pvy - pvPrevY, dpz = pvz - pvPrevZ;
-    pvPrevX = pvx; pvPrevY = pvy; pvPrevZ = pvz;
-    pvX = pvx; pvY = pvy; pvZ = pvz;
-    for (let i = 0; i < NBONE; i++) {
-      const J = bones[i];
-      const ix = dpx * J.cxx + dpy * J.cxy;
-      const iy = dpx * J.cyx + dpy * J.cyy;
-      const g = P.m * KICK;
-      J.vx -= g * ix;
-      J.vy -= g * iy;
-      J.vz -= g * (dpz + J.gz * iy * 0.5);
+  // Exact damped-oscillator step over h with constant external acceleration:
+  // shift to the equilibrium offset, advance the homogeneous solution, shift back.
+  function stepBone(J, h, ax, ay, az) {
+    const w = Math.max(TAU * P.freq * J.mk, 1e-3);
+    const z = Math.max(P.damp * J.mc, 0);
+    const w2 = w * w, zw = z * w;
+    eq[0] = -ax / w2;
+    eq[1] = (-ay - P.g * J.gg) / w2;
+    eq[2] = -az / w2;
+    const e = Math.exp(-zw * h);
+    let c, s;
+    if (z < 1) {
+      const wd = w * Math.sqrt(1 - z * z);
+      c = Math.cos(wd * h); s = Math.sin(wd * h) / wd;
+    } else {
+      const wd = w * Math.sqrt(z * z - 1);
+      c = Math.cosh(wd * h); s = wd > 1e-6 ? Math.sinh(wd * h) / wd : h;
+    }
+    for (let i = 0; i < 3; i++) {
+      const x = J.x[i] - eq[i], v = J.v[i];
+      J.x[i] = e * (x * c + (v + zw * x) * s) + eq[i];
+      J.v[i] = e * (v * c - (w2 * x + zw * v) * s);
     }
   }
 
-  function stepPhysics(h) {
+  // Advance one bone with its own parent acceleration (chains feed each link
+  // a different one). Offsets are repacked by pack().
+  function step(i, dt, ax, ay, az) {
+    stepBone(bones[i], Math.max(dt, 0), ax, ay, az);
+  }
+
+  function pack() {
     for (let i = 0; i < NBONE; i++) {
-      const J = bones[i];
-      const k = P.k * J.mk, c = P.c * J.mc;
-      const dvx = pvX * J.cxx + pvY * J.cxy;
-      const dvy = pvX * J.cyx + pvY * J.cyy;
-      const fx = -k * J.x - c * J.vx - P.m * VDRIVE * dvx;
-      const fy = -k * J.y - c * J.vy - P.g * J.gg - P.m * VDRIVE * dvy;
-      const fz = -k * J.z - c * J.vz - P.m * VDRIVE * pvZ;
-      J.vx += fx * h; J.vy += fy * h; J.vz += fz * h;
-      J.x += J.vx * h; J.y += J.vy * h; J.z += J.vz * h;
-      const len = Math.hypot(J.x, J.y, J.z);
-      if (len > J_MAX) {                 // soft wall: clamp + bleed speed
-        const s = J_MAX / len;
-        J.x *= s; J.y *= s; J.z *= s;
-        J.vx *= s; J.vy *= s; J.vz *= s;
-      }
-    }
-  }
-
-  function shake() {
-    for (let i = 0; i < NBONE; i++) {
-      const J = bones[i];
-      J.vx += (Math.random() - 0.5) * 11;
-      J.vy += (Math.random() - 0.5) * 11;
-      J.vz += (Math.random() - 0.5) * 11;
-    }
-  }
-
-  // Snap the velocity anchors to the current parent state so the next frame
-  // measures zero motion (prevents a spike after init or a reset/teleport).
-  function syncAnchors(yaw, pitch, body) {
-    camYawPrev = yaw; camPitchPrev = pitch;
-    bodyPrevX = body.x; bodyPrevY = body.y; bodyPrevZ = body.z;
-  }
-
-  function reset(input) {
-    for (let i = 0; i < NBONE; i++) { const J = bones[i]; J.x = J.y = J.z = J.vx = J.vy = J.vz = 0; }
-    bodyVx = bodyVy = bodyVz = 0; yawVel = pitchVel = 0;
-    pvPrevX = pvPrevY = pvPrevZ = 0; pvX = pvY = pvZ = 0; acc = 0;
-    if (input) syncAnchors(input.yaw, input.pitch, input.body);
-  }
-
-  // Advance the simulation by dt seconds given the current parent state.
-  // Returns the packed Float32Array of bone offsets (also exposed as .offsets).
-  function update(dt, input) {
-    if (!primed) { syncAnchors(input.yaw, input.pitch, input.body); primed = true; }
-    stepOrbitVel(dt, input.yaw, input.pitch);
-    stepBodyVel(dt, input.body);
-    applyParentImpulse();
-    acc += dt;
-    let sub = 0;
-    while (acc >= FIXED && sub < 32) { stepPhysics(FIXED); acc -= FIXED; sub++; }
-    for (let i = 0; i < NBONE; i++) {
-      offsets[i * 3] = bones[i].x;
-      offsets[i * 3 + 1] = bones[i].y;
-      offsets[i * 3 + 2] = bones[i].z;
+      const x = bones[i].x;
+      offsets[i * 3] = x[0]; offsets[i * 3 + 1] = x[1]; offsets[i * 3 + 2] = x[2];
     }
     return offsets;
   }
 
-  return { NBONE, params: P, offsets, update, shake, reset, reseed };
+  function update(dt, accel) {
+    for (let i = 0; i < NBONE; i++) step(i, dt, accel[0], accel[1], accel[2]);
+    return pack();
+  }
+
+  function shake() {
+    for (let i = 0; i < NBONE; i++) {
+      const v = bones[i].v;
+      v[0] += (rng() - 0.5) * 11;
+      v[1] += (rng() - 0.5) * 11;
+      v[2] += (rng() - 0.5) * 11;
+    }
+  }
+
+  function reset() {
+    for (let i = 0; i < NBONE; i++) { bones[i].x.fill(0); bones[i].v.fill(0); }
+    offsets.fill(0);
+  }
+
+  // bones exposes {x, v} state for extensions (colliders, chains).
+  return {
+    NBONE, params: P, offsets, bones, meta: JIGGLE_PHYSICS_META,
+    get seed() { return seed; },
+    update, step, pack, shake, reset, reseed
+  };
 }
 
-if (typeof window !== "undefined") window.createJigglePhysics = createJigglePhysics;
+// Parent position -> parent acceleration. Finite difference with exponential
+// velocity smoothing (tau seconds) so quantized input does not spike the bones.
+function createJiggleDriver(opts) {
+  const tau = (opts && opts.tau) || 0.012;
+  const accel = new Float32Array(3);
+  const vel = [0, 0, 0], prev = [0, 0, 0];
+  let primed = false;
+
+  function reset(pos) {
+    vel.fill(0); accel.fill(0);
+    primed = !!pos;
+    if (pos) { prev[0] = pos[0]; prev[1] = pos[1]; prev[2] = pos[2]; }
+  }
+
+  function update(dt, pos) {
+    const h = Math.max(dt, 1e-4);
+    if (!primed) reset(pos);
+    const blend = 1 - Math.exp(-h / tau);
+    for (let i = 0; i < 3; i++) {
+      const raw = (pos[i] - prev[i]) / h;
+      prev[i] = pos[i];
+      const nv = vel[i] + (raw - vel[i]) * blend;
+      accel[i] = (nv - vel[i]) / h;
+      vel[i] = nv;
+    }
+    return accel;
+  }
+
+  return { update, reset };
+}
+
+if (typeof window !== "undefined") {
+  window.createJigglePhysics = createJigglePhysics;
+  window.createJiggleDriver = createJiggleDriver;
+  window.JIGGLE_PHYSICS_META = JIGGLE_PHYSICS_META;
+}

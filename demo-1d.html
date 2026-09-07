@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Jiggle Physics 1D — damped spring, exact step at any rate</title>
+<meta name="description" content="xlovecam Jiggle Physics 1D demo: one axis, three damping regimes, exact closed-form step at any update rate." />
+<link rel="stylesheet" href="jiggle-demo.css" />
+</head>
+<body>
+  <canvas id="c"></canvas>
+  <div id="frame"></div>
+  <div id="head">Jiggle Physics · 1D</div>
+  <nav id="dims"><a href="demo-1d.html" class="on">1D</a><a href="demo-2d.html">2D</a><a href="index.html">3D</a></nav>
+  <div id="read">under · critical · over</div>
+  <div id="hint">drag up / down to move the parent &bull; the three masses follow with ζ = 0.14 / 1 / 1.7 &bull; lower the step rate: same curve, fewer samples &bull; space shake &bull; R reset</div>
+
+  <div id="panel">
+    <div class="row"><label for="kFreq">frequency</label><input id="kFreq" type="range" min="0.3" max="4" step="0.01" value="1.56" /><output id="kFreqV"></output></div>
+    <div class="row"><label for="kRate">step rate</label><input id="kRate" type="range" min="5" max="120" step="1" value="60" /><output id="kRateV"></output></div>
+  </div>
+  <div id="buttons">
+    <button id="bShake" class="btn" type="button">shake</button>
+    <button id="bReset" class="btn" type="button">reset</button>
+  </div>
+
+<script src="jiggle-physics.js"></script>
+<script src="jiggle-demo-1d.js"></script>
+</body>
+</html>

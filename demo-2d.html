@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Jiggle Physics 2D — edge bones, colliders</title>
+<meta name="description" content="xlovecam Jiggle Physics 2D demo: outline follows three edge bones through the exact damped-spring step; floor and ring colliders." />
+<link rel="stylesheet" href="jiggle-demo.css" />
+</head>
+<body>
+  <canvas id="c"></canvas>
+  <div id="frame"></div>
+  <div id="head">Jiggle Physics · xlovecam</div>
+  <nav id="dims"><a href="demo-1d.html">1D</a><a href="demo-2d.html" class="on">2D</a><a href="index.html">3D</a></nav>
+  <div id="read"><span id="geoName">Disc</span></div>
+  <div id="hint">drag the shape fast (acceleration drives jiggle) &bull; drag the ring collider &bull; push a bone into the floor or ring &bull; W bones &bull; G geometry &bull; X reseed &bull; space shake &bull; R reset</div>
+  <div id="credit"><a href="https://github.com/xloveee/jiggle-physics" rel="author">xlovecam</a> jiggle physics standard</div>
+
+  <div id="panel">
+    <div class="row"><label for="kFreq">frequency</label><input id="kFreq" type="range" min="0.3" max="4" step="0.01" value="1.56" /><output id="kFreqV"></output></div>
+    <div class="row"><label for="kDamp">damping</label><input id="kDamp" type="range" min="0" max="1.5" step="0.01" value="0.14" /><output id="kDampV"></output></div>
+    <div class="row"><label for="kGrav">gravity</label><input id="kGrav" type="range" min="0" max="8" step="0.1" value="2.2" /><output id="kGravV"></output></div>
+    <div class="row"><label for="oDrive">drive</label><input id="oDrive" type="range" min="0" max="4" step="0.05" value="1" /><output id="oDriveV"></output></div>
+  </div>
+  <div id="buttons">
+    <button id="bGeo" class="btn" type="button">geometry: disc</button>
+    <button id="bShow" class="btn on" type="button">hide bones</button>
+    <button id="bSeed" class="btn" type="button">reseed</button>
+    <button id="bShake" class="btn" type="button">shake</button>
+    <button id="bReset" class="btn" type="button">reset</button>
+  </div>
+
+<script src="jiggle-physics.js"></script>
+<script src="jiggle-colliders.js"></script>
+<script src="jiggle-demo-2d.js"></script>
+</body>
+</html>

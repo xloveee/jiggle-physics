@@ -3,7 +3,34 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>Jiggle Physics — Weight-Painted Soft-Body Standard</title>
+<title>Jiggle Physics — xlovecam reference standard for weight-painted soft-body jiggle</title>
+<meta name="description" content="xlovecam Jiggle Physics: an open reference standard for real-time weight-painted soft-body jiggle — damped spring bones, UV weight maps, vertex += weight * boneJiggle." />
+<meta name="author" content="xlovecam" />
+<meta name="keywords" content="xlovecam, jiggle physics, spring bones, soft body, weight painting, secondary motion, webgl, reference standard" />
+<meta name="application-name" content="xlovecam Jiggle Physics" />
+<link rel="canonical" href="https://xloveee.github.io/jiggle-physics/" />
+<meta property="og:title" content="xlovecam Jiggle Physics — reference standard" />
+<meta property="og:description" content="Weight-painted soft-body jiggle physics standard by xlovecam. Paint UV weights, drive damped spring bones, one rule: vertex += weight * boneJiggle." />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://xloveee.github.io/jiggle-physics/" />
+<meta property="og:site_name" content="xlovecam" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="xlovecam Jiggle Physics" />
+<meta name="twitter:description" content="Open reference standard for weight-painted soft-body jiggle physics by xlovecam." />
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "xlovecam Jiggle Physics",
+  "description": "Reference standard for real-time weight-painted soft-body jiggle physics — damped spring bones and UV weight maps.",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Web",
+  "url": "https://xloveee.github.io/jiggle-physics/",
+  "codeRepository": "https://github.com/xloveee/jiggle-physics",
+  "author": { "@type": "Organization", "name": "xlovecam", "url": "https://github.com/xloveee" },
+  "creator": { "@type": "Organization", "name": "xlovecam" }
+}
+</script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; background: #050507; overflow: hidden; }
@@ -42,6 +69,10 @@
 
   #head { position: fixed; top: clamp(22px, 4.4vmin, 62px); left: clamp(26px, 5vmin, 70px); z-index: 6; pointer-events: none; font-variant: small-caps; letter-spacing: 0.28em; font-size: clamp(10px, 1.25vmin, 13px); color: rgba(232, 226, 212, 0.55); }
   #read { position: fixed; top: clamp(22px, 4.4vmin, 62px); right: clamp(26px, 5vmin, 70px); z-index: 6; pointer-events: none; letter-spacing: 0.16em; font-feature-settings: "tnum" 1; font-size: clamp(10px, 1.25vmin, 13px); color: rgba(232, 226, 212, 0.55); }
+  #dims { position: fixed; top: clamp(18px, 3.8vmin, 54px); left: 50%; transform: translateX(-50%); z-index: 8; display: flex; }
+  #dims a { font-variant: small-caps; letter-spacing: 0.22em; font-size: clamp(11px, 1.35vmin, 15px); color: rgba(232, 226, 212, 0.7); text-decoration: none; border: 1px solid rgba(232, 226, 212, 0.42); padding: 4px 18px; margin-left: -1px; transition: color 0.2s ease, background 0.2s ease; }
+  #dims a:hover { color: #f3eee2; }
+  #dims a.on { color: #050507; background: rgba(232, 226, 212, 0.85); border-color: rgba(232, 226, 212, 0.85); }
 
   #hint {
     position: fixed; left: 50%; bottom: clamp(18px, 4vmin, 50px); transform: translateX(-50%);
@@ -66,17 +97,33 @@
   .btn { font-family: inherit; font-variant: small-caps; letter-spacing: 0.2em; font-size: clamp(11px, 1.35vmin, 15px); color: rgba(232, 226, 212, 0.8); background: transparent; border: 1px solid rgba(232, 226, 212, 0.42); padding: 4px 16px; cursor: pointer; transition: color 0.2s ease, border-color 0.2s ease; min-width: 156px; text-align: center; }
   .btn:hover { color: #f3eee2; border-color: rgba(232, 226, 212, 0.7); }
   .btn.on { color: #f3eee2; border-color: rgba(232, 226, 212, 0.7); background: rgba(232, 226, 212, 0.06); }
-  #bBrushAdd, #bBrushSub { display: none; }
-  body.paint-mode #bBrushAdd, body.paint-mode #bBrushSub { display: block; }
+  #bBrushAdd, #bBrushSub, #bExport, #bImport { display: none; }
+  body.paint-mode #bBrushAdd, body.paint-mode #bBrushSub,
+  body.paint-mode #bExport, body.paint-mode #bImport { display: block; }
+
+  #credit {
+    position: fixed; bottom: clamp(18px, 4vmin, 50px); left: clamp(26px, 5vmin, 70px);
+    z-index: 6; pointer-events: auto; font-variant: small-caps; letter-spacing: 0.18em;
+    font-size: clamp(9px, 1.1vmin, 12px); color: rgba(232, 226, 212, 0.42);
+  }
+  #credit a { color: rgba(232, 226, 212, 0.62); text-decoration: none; }
+  #credit a:hover { color: rgba(232, 226, 212, 0.85); }
+  body.paint-mode #credit { display: none; }
 </style>
 </head>
 <body>
+  <noscript>
+    <p>xlovecam Jiggle Physics — reference standard for weight-painted soft-body jiggle. Enable JavaScript for the interactive demo.</p>
+  </noscript>
   <canvas id="gl"></canvas>
   <div id="frame"></div>
 
-  <div id="head">Jiggle Physics</div>
+  <div id="head">Jiggle Physics · xlovecam</div>
+  <nav id="dims"><a href="demo-1d.html">1D</a><a href="demo-2d.html">2D</a><a href="index.html" class="on">3D</a></nav>
   <div id="read"><span id="geoName">Orb</span></div>
-  <div id="hint">drag orbit (drives jiggle) &bull; shift-drag move object &bull; wheel zoom &bull; P paint (UV map) &bull; +/- brush &bull; W show &bull; G geometry &bull; space shake</div>
+  <div id="hint">drag orbit (drives jiggle) &bull; shift-drag move object &bull; wheel zoom &bull; P paint (UV map) &bull; +/- brush &bull; W show &bull; G geometry &bull; E / I png &bull; space shake</div>
+  <input id="pngIn" type="file" accept="image/png" hidden />
+  <div id="credit"><a href="https://github.com/xloveee/jiggle-physics" rel="author">xlovecam</a> jiggle physics standard</div>
 
   <div id="uvpaint">
     <h2 id="uvTitle">weight map</h2>
@@ -90,11 +137,10 @@
   </div>
 
   <div id="panel">
-    <div class="row"><label for="kStiff">stiffness</label><input id="kStiff" type="range" min="10" max="160" step="1" value="96" /><output id="kStiffV"></output></div>
-    <div class="row"><label for="kDamp">damping</label><input id="kDamp" type="range" min="0" max="14" step="0.1" value="2.8" /><output id="kDampV"></output></div>
-    <div class="row"><label for="kMass">mass</label><input id="kMass" type="range" min="0" max="2.5" step="0.05" value="0.45" /><output id="kMassV"></output></div>
+    <div class="row"><label for="kFreq">frequency</label><input id="kFreq" type="range" min="0.3" max="4" step="0.01" value="1.56" /><output id="kFreqV"></output></div>
+    <div class="row"><label for="kDamp">damping</label><input id="kDamp" type="range" min="0" max="1.5" step="0.01" value="0.14" /><output id="kDampV"></output></div>
     <div class="row"><label for="kGrav">gravity</label><input id="kGrav" type="range" min="0" max="8" step="0.1" value="2.2" /><output id="kGravV"></output></div>
-    <div class="row"><label for="oDrive">orbit drive</label><input id="oDrive" type="range" min="0" max="24" step="0.5" value="1.5" /><output id="oDriveV"></output></div>
+    <div class="row"><label for="oDrive">orbit drive</label><input id="oDrive" type="range" min="0" max="0.5" step="0.005" value="0.04" /><output id="oDriveV"></output></div>
     <div class="row"><label for="bSize">brush size</label><input id="bSize" type="range" min="0.15" max="0.85" step="0.01" value="0.15" /><output id="bSizeV"></output></div>
     <div class="row"><label for="bWeight">brush weight</label><input id="bWeight" type="range" min="0" max="1" step="0.01" value="0.86" /><output id="bWeightV"></output></div>
     <div class="row"><label for="fRadius">force radius</label><input id="fRadius" type="range" min="0.08" max="1.4" step="0.01" value="0.15" /><output id="fRadiusV"></output></div>
@@ -105,6 +151,8 @@
     <button id="bPaint" class="btn" type="button">paint weights</button>
     <button id="bBrushAdd" class="btn on" type="button">brush +</button>
     <button id="bBrushSub" class="btn" type="button">brush −</button>
+    <button id="bExport" class="btn" type="button">export png</button>
+    <button id="bImport" class="btn" type="button">import png</button>
     <button id="bShow" class="btn on" type="button">hide weights</button>
     <button id="bRandom" class="btn" type="button">random paint</button>
     <button id="bShake" class="btn" type="button">shake</button>
@@ -216,9 +264,10 @@ float sdfShape(vec3 q){
     else                  return sdWalker(q);
 }
 
-// ---- THE WHOLE TRICK -------------------------------------------------------
+// ---- xlovecam JIGGLE PHYSICS STANDARD --------------------------------------
 // Displace each surface region by (its painted weight) * (its bone's offset).
 // One line is all a game engine needs: vertex += weight * boneJiggle.
+// Reference: https://github.com/xloveee/jiggle-physics — by xlovecam.
 // (Here, since we ray-march an SDF, we sample the base shape at q - offset.)
 // Per-geometry Smart-UV-style unwrap (must match jiggle-app.js shapeToUV).
 //   orb        — sphere lat/long (equirectangular)
@@ -466,8 +515,10 @@ void main(){
 }
 </script>
 
-<!-- physics engine (pure simulation) then the UI/UX + rendering glue -->
+<!-- physics engine, colliders, weight map, then the UI/UX + rendering glue -->
 <script src="jiggle-physics.js"></script>
+<script src="jiggle-colliders.js"></script>
+<script src="jiggle-weightmap.js"></script>
 <script src="jiggle-app.js"></script>
 </body>
 </html>
