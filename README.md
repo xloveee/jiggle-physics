@@ -48,6 +48,10 @@ Each bone is a damped oscillator in the parent's accelerating frame:
 x'' = -ω² x - 2ζω x' - a_parent + g
 ```
 
+`ω` and `ζ` are the shared tissue response scaled by the bone's region size
+(`ω ∝ 1/√size`, see below), so a wide painted band and a small dot on the same
+material move differently, as they do on a body.
+
 The reference step is the **exact closed-form solution** of that equation, so
 it is stable for any `dt` and defines the output rather than approximating it.
 Two conforming engines agree to floating-point precision.
@@ -96,8 +100,14 @@ jiggle/
   only external term a spring in an accelerating frame feels. Hosts with only a
   position use `createJiggleDriver()` (finite difference + smoothing).
 - Parameters are the observable pair: `freq` (Hz) and `damp` (damping ratio ζ),
-  plus `g` (gravity). Mass is not a parameter — it is not observable separately
-  from `k/m` and `c/m`. ζ ≥ 1 (critical / over-damped) is handled.
+  plus `g` (gravity). Absolute mass is not a parameter — it is not observable
+  separately from `k/m` and `c/m`. ζ ≥ 1 (critical / over-damped) is handled.
+- **Relative** mass is observable and is per bone: `bones[i].size` (default 1)
+  is the mass of the region the bone stands for. Tissue `k` and `c` are shared,
+  so `ω` and `ζ` both scale by `1/√size` — a larger region wobbles slower, rings
+  longer and travels further. The demos derive `size` from the painted area
+  (Σ weight / texel count, exposed as `weights.area[i]`), clamped to
+  `[0.5, 2]` because UV area is only a proxy for surface area.
 - Per-bone character is seeded (mulberry32): frequency, damping and gravity
   multipliers. `reseed()` / `reseed(n)` and `shake()` use the same RNG — no
   `Math.random()` in the engine.

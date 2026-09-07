@@ -33,6 +33,9 @@ function bootstrap() {
   const colliders = createJiggleColliders({ limit: 0.4 });
   colliders.plane(0, 1, 0, -1);
   const FLOOR_GAP = [0.28, 0.04, 0.70, 0.84, 0.75];
+  // Region mass from painted area: a mid-sized preset region covers ~7% of the
+  // map (size 1). Clamped because UV area is only a proxy for surface area.
+  const AREA_REF = 0.07, SIZE_MIN = 0.5, SIZE_MAX = 2.0;
 
   const vsrc = "attribute vec2 a;void main(){gl_Position=vec4(a,0.0,1.0);}";
   const fsrc = document.getElementById("frag").textContent;
@@ -350,6 +353,9 @@ function bootstrap() {
     const jig = colliders.resolveAll(physics, body.x, body.y + FLOOR_GAP[geo] - 1, body.z);
 
     hasWeights = weights.uploadIfDirty();
+    for (let i = 0; i < NBONE; i++) {
+      physics.bones[i].size = Math.min(SIZE_MAX, Math.max(SIZE_MIN, weights.area[i] / AREA_REF));
+    }
 
     gl.uniform1f(uTime, tSec);
     gl.uniform3fv(uJig, jig);

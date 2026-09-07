@@ -11,13 +11,14 @@ const canvas = document.getElementById("c");
 const ctx = canvas.getContext("2d");
 const PX = 100;
 const LOOP_N = 96;
-const LOBE_SIGMA = 0.55;
+// Region mass from painted outline fraction: a lobe of ~20% of the outline is size 1.
+const AREA_REF = 0.2, SIZE_MIN = 0.5, SIZE_MAX = 2.0;
 const BONE_RGB = [[240, 160, 112], [127, 176, 224], [143, 208, 143]];
 const BONE_CSS = BONE_RGB.map((c) => "rgb(" + c.join(",") + ")");
 const REST_RGB = [70, 68, 72];
 const PLAIN_CSS = "rgba(232,226,212,0.55)";
 
-// ---- geometries: loops of rest points + lobe presets (angle, amp per bone) --
+// ---- geometries: loops of rest points + lobe presets (angle, amp, sigma per bone)
 const circle = (r) => (t) => [r * Math.cos(t * Math.PI * 2), r * Math.sin(t * Math.PI * 2)];
 function capsule(r, hh) {
   const L = 2 * hh, C = Math.PI * r, P = 2 * L + 2 * C;
@@ -30,18 +31,20 @@ function capsule(r, hh) {
   };
 }
 const GEOS = [
-  { name: "Disc",    loops: [circle(0.7)],               lobes: [[-Math.PI / 2, 1.0], [0, 0.8], [Math.PI, 0.8]] },
-  { name: "Capsule", loops: [capsule(0.42, 0.42)],       lobes: [[-Math.PI / 2, 1.0], [0, 0.6], [Math.PI, 0.6]] },
-  { name: "Ring",    loops: [circle(0.75), circle(0.42)], lobes: [[-Math.PI / 2, 1.0], [Math.PI / 6, 1.0], [5 * Math.PI / 6, 1.0]] }
+  { name: "Disc",    loops: [circle(0.7)],               lobes: [[-Math.PI / 2, 1.0, 0.9], [0, 0.8, 0.4], [Math.PI, 0.8, 0.4]] },
+  { name: "Capsule", loops: [capsule(0.42, 0.42)],       lobes: [[-Math.PI / 2, 1.0, 0.7], [0, 0.6, 0.45], [Math.PI, 0.6, 0.45]] },
+  { name: "Ring",    loops: [circle(0.75), circle(0.42)], lobes: [[-Math.PI / 2, 1.0, 0.55], [Math.PI / 6, 1.0, 0.55], [5 * Math.PI / 6, 1.0, 0.55]] }
 ];
-// Bake each geometry once: rest points, per-point weights, tint, bone rest points.
+// Bake each geometry once: rest points, per-point weights, tint, bone rest
+// points, and each bone's region size (painted fraction of the outline).
 for (const g of GEOS) {
   const n = g.loops.length * LOOP_N;
   g.rest = new Float32Array(n * 2);
   g.w = new Float32Array(n * 3);
   g.tint = new Array(n);
   g.boneRest = [[0, 0], [0, 0], [0, 0]];
-  const best = [Infinity, Infinity, Infinity];
+  g.size = [1, 1, 1];
+  const best = [Infinity, Infinity, Infinity], sum = [0, 0, 0];
   for (let l = 0; l < g.loops.length; l++) {
     for (let k = 0; k < LOOP_N; k++) {
       const i = l * LOOP_N + k;
@@ -52,14 +55,17 @@ for (const g of GEOS) {
       for (let b = 0; b < 3; b++) {
         let d = th - g.lobes[b][0];
         d = Math.atan2(Math.sin(d), Math.cos(d));
-        const w = g.lobes[b][1] * Math.exp(-d * d / (2 * LOBE_SIGMA * LOBE_SIGMA));
+        const s = g.lobes[b][2];
+        const w = g.lobes[b][1] * Math.exp(-d * d / (2 * s * s));
         g.w[i * 3 + b] = w;
+        sum[b] += w;
         for (let c = 0; c < 3; c++) rgb[c] += w * (BONE_RGB[b][c] - REST_RGB[c]);
         if (l === 0 && Math.abs(d) < best[b]) { best[b] = Math.abs(d); g.boneRest[b] = p; }
       }
       g.tint[i] = "rgb(" + rgb.map((c) => Math.round(Math.min(255, c))).join(",") + ")";
     }
   }
+  for (let b = 0; b < 3; b++) g.size[b] = Math.min(SIZE_MAX, Math.max(SIZE_MIN, sum[b] / n / AREA_REF));
 }
 const pts = new Float32Array(2 * LOOP_N * 2);
 
@@ -87,6 +93,7 @@ function setGeo(g) {
   geo = g;
   elGeoName.textContent = GEOS[geo].name;
   bGeo.textContent = "geometry: " + GEOS[geo].name.toLowerCase();
+  for (let b = 0; b < 3; b++) physics.bones[b].size = GEOS[geo].size[b];
   physics.reset();
   consumedHint();
 }

@@ -23,6 +23,7 @@ function createWeightMap(gl, uvCanvas) {
   let gainAll = 1.0;
   const boneGain = [1.0, 1.0, 1.0];
   let wmapDirty = true, hasWeights = false;
+  const area = new Float32Array(3);        // painted fraction of the map per bone
   let strokeBone = 0, strokeCount = 0;
   let strokeDist = 0, lastUv = null;
   let geo = 0;
@@ -87,18 +88,23 @@ function createWeightMap(gl, uvCanvas) {
     return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
   }
 
+  // Apply gains; on the same pass integrate each bone's painted area
+  // (Σ weight / texel count) — the relative mass its region stands for.
   function applyGains() {
     const g0 = boneGain[0] * gainAll, g1 = boneGain[1] * gainAll, g2 = boneGain[2] * gainAll;
-    let any = false;
+    let any = false, s0 = 0, s1 = 0, s2 = 0;
     for (let i = 0; i < WMAP_W * WMAP_H; i++) {
       const p = i * 4;
       const r = Math.min(255, Math.round(wmapSrc[p]     * g0));
       const g = Math.min(255, Math.round(wmapSrc[p + 1] * g1));
       const b = Math.min(255, Math.round(wmapSrc[p + 2] * g2));
       wmap[p] = r; wmap[p + 1] = g; wmap[p + 2] = b; wmap[p + 3] = 255;
+      s0 += r; s1 += g; s2 += b;
       if (r > 2 || g > 2 || b > 2) any = true;
     }
     hasWeights = any;
+    const norm = 1 / (255 * WMAP_W * WMAP_H);
+    area[0] = s0 * norm; area[1] = s1 * norm; area[2] = s2 * norm;
   }
 
   function resetGains() {
@@ -271,6 +277,13 @@ function createWeightMap(gl, uvCanvas) {
     }
   }
 
+  // Walker preset splats: x, y, z on the body, bone, strength.
+  const WALKER_SPLATS = [
+    [-0.105,  0.345,  0.135, 0, 1.0], [0.105,  0.345,  0.135, 0, 1.0],
+    [-0.105, -0.10,  -0.115, 1, 1.0], [0.105, -0.10,  -0.115, 1, 1.0],
+    [0,      -0.12,   0.13,  2, 0.85]
+  ];
+
   function defaultWeights(g) {
     clear();
     if (g === 0) {
@@ -288,13 +301,13 @@ function createWeightMap(gl, uvCanvas) {
       ringUV(1, 0.66, 0.09, 0.80);
       ringUV(2, 0.42, 0.10, 0.55);
     } else {
+      // One splat pass peaks at FLOW; stack four so the walker's regions reach
+      // ~0.8 like the ring presets instead of staying pale.
       const prevR = brushR, prevS = brushSign;
-      brushR = 0.16; brushSign = 1;
-      splatAtXYZ(-0.105, 0.345, 0.135, 0, 1.0);
-      splatAtXYZ(0.105, 0.345, 0.135, 0, 1.0);
-      splatAtXYZ(-0.105, -0.10, -0.115, 1, 1.0);
-      splatAtXYZ(0.105, -0.10, -0.115, 1, 1.0);
-      splatAtXYZ(0, -0.12, 0.13, 2, 0.85);
+      brushR = 0.5; brushSign = 1;
+      for (let pass = 0; pass < 4; pass++) {
+        for (const s of WALKER_SPLATS) splatAtXYZ(s[0], s[1], s[2], s[3], s[4]);
+      }
       brushR = prevR; brushSign = prevS;
     }
     wmapDirty = true;
@@ -386,7 +399,7 @@ function createWeightMap(gl, uvCanvas) {
   }
 
   return {
-    wTex, fTex, setGeo, paintUv, endStroke, randomPaint, clear,
+    wTex, fTex, area, setGeo, paintUv, endStroke, randomPaint, clear,
     setBrush, setForceRadius, setGains, resetGains, uploadIfDirty,
     exportPng, importPng
   };

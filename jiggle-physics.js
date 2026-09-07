@@ -60,12 +60,15 @@ function createJigglePhysics(opts) {
 
   // Tunable parameters (the UI mutates these in place).
   // freq: natural frequency in Hz. damp: damping ratio ζ. g: gravity (accel, -y).
-  const P = { freq: 1.56, damp: 0.14, g: 2.2 };
+  const P = { freq: 1.9, damp: 0.14, g: 2.7 };
 
   const bones = [];
   const offsets = new Float32Array(NBONE * 3);
+  // size = relative mass of the region the bone stands for (host-set, default 1).
+  // Tissue k and c are shared, so ω and ζ both scale by 1/sqrt(size): a larger
+  // region wobbles slower, is less damped, and moves further.
   for (let i = 0; i < NBONE; i++) {
-    bones.push({ x: [0, 0, 0], v: [0, 0, 0], mk: 1, mc: 1, gg: 0.8 });
+    bones.push({ x: [0, 0, 0], v: [0, 0, 0], mk: 1, mc: 1, gg: 0.8, size: 1 });
   }
   const eq = [0, 0, 0];
 
@@ -86,8 +89,9 @@ function createJigglePhysics(opts) {
   // Exact damped-oscillator step over h with constant external acceleration:
   // shift to the equilibrium offset, advance the homogeneous solution, shift back.
   function stepBone(J, h, ax, ay, az) {
-    const w = Math.max(TAU * P.freq * J.mk, 1e-3);
-    const z = Math.max(P.damp * J.mc, 0);
+    const inv = 1 / Math.sqrt(Math.max(J.size, 1e-4));
+    const w = Math.max(TAU * P.freq * J.mk * inv, 1e-3);
+    const z = Math.max(P.damp * J.mc * inv, 0);
     const w2 = w * w, zw = z * w;
     eq[0] = -ax / w2;
     eq[1] = (-ay - P.g * J.gg) / w2;
